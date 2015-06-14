@@ -1,0 +1,68 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Timothy M. Rodriguez"
+date: "Sunday, June 14, 2015"
+output: html_document
+---
+
+## Summary
+In this project we use the Human Activity Recognition data from [PUC Rio](http://groupware.les.inf.puc-rio.br/har) to build a classifier of the quality of weight lifting movements by a user based on accelerometer data captured from different points on the user's body.
+
+##Exploratory Analysis
+
+First, we load the necessary packages and data.
+
+```{r}
+require.or.install <- function(package.name) {
+  if (!require(package.name, character.only=TRUE)) {
+    install.packages(package.name, dep=TRUE)
+    if (!require(package.name, character.only=TRUE)) {
+      stop(paste("Could not install package ", package.name))
+    }
+  }
+}
+
+download.if.not.present <- function(url, file.name) {
+  if (!file.exists(file.name)) {
+    download.file(url, file.name)
+  }
+}
+
+require.or.install("caret")
+require.or.install("doParallel")
+registerDoParallel(makeCluster(detectCores()))
+
+training.file.name <- "training.csv"
+testing.file.name <- "testing.csv"
+download.if.not.present("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "training.csv")
+download.if.not.present("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "testing.csv")
+
+training <- read.csv(training.file.name)
+testing <- read.csv(testing.file.name)
+
+```
+
+Next, we do some further analysis to figure out which features are useful.
+```{r}
+near.zero <- nearZeroVar(training, saveMetrics=TRUE)
+print(near.zero[near.zero$nzv==TRUE, ])
+```
+We see that there are quite a few variables with near zero variance, so we remove them.
+```{r}
+col.names <- rownames(near.zero[near.zero$nzv==FALSE, ])
+sub.training <- subset(training, select=col.names)
+sub.testing <- subset(testing, select=col.names[1:99]) #we leave off the classe variable
+```
+There are also a few diagnostic variables that should not be included for creating a generalizable model such as the user's name, the start or end of windows during data collections, etc.  This is good data to have from a gathering point of view, but is not useful for building a classifier that generalizes to usage outside of a laboratory.
+```{r}
+sub.training <- subset(sub.training, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))
+sub.testing <- subset(sub.testing, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))
+```
+Since our test set is really only used for final grading. We'll split the training data further down into a training and test set.
+```{r}
+set.seed(7356)
+training.ids <- createDataPartition(y=sub.training$classe, p=0.05, list=FALSE)
+final.training <- training[training.ids, ]
+final.testing <- training[-training.ids, ]
+fit <- train(classe ~ ., data=sub.training, method="rf")
+```
