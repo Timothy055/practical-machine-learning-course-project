@@ -12,7 +12,7 @@ In this project we use the Human Activity Recognition data from [PUC Rio](http:/
 
 First, we load the necessary packages and data.
 
-```{r}
+```{r results='hide'}
 require.or.install <- function(package.name) {
   if (!require(package.name, character.only=TRUE)) {
     install.packages(package.name, dep=TRUE)
@@ -62,7 +62,7 @@ Since our test set is really only used for final grading. We'll split the traini
 ```{r}
 set.seed(7356)
 training.ids <- createDataPartition(y=sub.training$classe, p=0.05, list=FALSE)
-final.training <- training[training.ids, ]
-final.testing <- training[-training.ids, ]
-fit <- train(classe ~ ., data=sub.training, method="rf")
+cleaned.training <- training[training.ids, ]
+cleaned.testing <- training[-training.ids, ]
+fit <- train(classe ~ ., data=cleaned.training, method="rf")
 ```

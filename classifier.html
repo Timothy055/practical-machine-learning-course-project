@@ -181,12 +181,14 @@ sub.testing &lt;- subset(sub.testing, select=c(-user_name, -raw_timestamp_part_1
 <p>Since our test set is really only used for final grading. We’ll split the training data further down into a training and test set.</p>
 <pre class="r"><code>set.seed(7356)
 training.ids &lt;- createDataPartition(y=sub.training$classe, p=0.05, list=FALSE)
-final.training &lt;- training[training.ids, ]
-final.testing &lt;- training[-training.ids, ]
-fit &lt;- train(classe ~ ., data=sub.training, method=&quot;rf&quot;)</code></pre>
+cleaned.training &lt;- training[training.ids, ]
+cleaned.testing &lt;- training[-training.ids, ]
+fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;)</code></pre>
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<pre><code>## Warning in nominalTrainWorkflow(x = x, y = y, wts = weights, info =
+## trainInfo, : There were missing values in resampled performance measures.</code></pre>
 </div>
 
 
