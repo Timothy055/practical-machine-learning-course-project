@@ -55,8 +55,8 @@ sub.testing <- subset(testing, select=col.names[1:99]) #we leave off the classe 
 ```
 There are also a few diagnostic variables that should not be included for creating a generalizable model such as the user's name, the start or end of windows during data collections, etc.  This is good data to have from a gathering point of view, but is not useful for building a classifier that generalizes to usage outside of a laboratory.
 ```{r}
-sub.training.2 <- subset(sub.training, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
-sub.testing.2 <- subset(sub.testing, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+sub.training.2 <- subset(sub.training, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+sub.testing.2 <- subset(sub.testing, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
 ```
 There's also some columns that are primarily NA.  We remove these columns.
 ```{r}
@@ -69,13 +69,13 @@ final.testing <- subset(sub.testing.2, select=c(names(na.cols[na.cols==FALSE & n
 
 ```
 Since our test set is really only used for final grading. We'll split the training data further down into a training and test set.
-```{r cache=TRUE}
+```{r cache=FALSE}
 set.seed(7356)
 #we only use 30% of the data to train on to reduce computation here
 training.ids <- createDataPartition(y=final.training$classe, p=0.30, list=FALSE)
 cleaned.training <- final.training[training.ids, ]
 cleaned.testing <- final.training[-training.ids, ]
-fit <- train(classe ~ ., data=cleaned.training, method="rf", trControl=trainControl(method = "cv", number = 10), preProcess=c("center", "scale"))
+fit <- train(classe ~ ., data=cleaned.training, method="rf", trControl=trainControl(method = "cv", number = 5), preProcess=c("center", "scale"))
 print(fit)
 ```
 The model was able to obtain very high accuracy of `r fit$results[3,2]` with the random forest method on the training set with cross validation.  We should get similar in the test set. Let's see how we do on the test set.

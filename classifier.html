@@ -176,8 +176,8 @@ print(near.zero[near.zero$nzv==TRUE, ])</code></pre>
 sub.training &lt;- subset(training, select=col.names)
 sub.testing &lt;- subset(testing, select=col.names[1:99]) #we leave off the classe variable</code></pre>
 <p>There are also a few diagnostic variables that should not be included for creating a generalizable model such as the user’s name, the start or end of windows during data collections, etc. This is good data to have from a gathering point of view, but is not useful for building a classifier that generalizes to usage outside of a laboratory.</p>
-<pre class="r"><code>sub.training.2 &lt;- subset(sub.training, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
-sub.testing.2 &lt;- subset(sub.testing, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))</code></pre>
+<pre class="r"><code>sub.training.2 &lt;- subset(sub.training, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+sub.testing.2 &lt;- subset(sub.testing, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))</code></pre>
 <p>There’s also some columns that are primarily NA. We remove these columns.</p>
 <pre class="r"><code>greater.than.percent.na &lt;- function(col, percent) {
   length(which(is.na(col)))/length(col) &gt; percent
@@ -191,7 +191,7 @@ final.testing &lt;- subset(sub.testing.2, select=c(names(na.cols[na.cols==FALSE 
 training.ids &lt;- createDataPartition(y=final.training$classe, p=0.30, list=FALSE)
 cleaned.training &lt;- final.training[training.ids, ]
 cleaned.testing &lt;- final.training[-training.ids, ]
-fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;, trControl=trainControl(method = &quot;cv&quot;, number = 10), preProcess=c(&quot;center&quot;, &quot;scale&quot;))</code></pre>
+fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;, trControl=trainControl(method = &quot;cv&quot;, number = 5), preProcess=c(&quot;center&quot;, &quot;scale&quot;))</code></pre>
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
@@ -199,24 +199,24 @@ fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;, trCont
 <pre><code>## Random Forest 
 ## 
 ## 5889 samples
-##   53 predictor
+##   52 predictor
 ##    5 classes: 'A', 'B', 'C', 'D', 'E' 
 ## 
 ## Pre-processing: centered, scaled 
-## Resampling: Cross-Validated (10 fold) 
+## Resampling: Cross-Validated (5 fold) 
 ## 
-## Summary of sample sizes: 5301, 5301, 5299, 5301, 5299, 5300, ... 
+## Summary of sample sizes: 4711, 4712, 4711, 4711, 4711 
 ## 
 ## Resampling results across tuning parameters:
 ## 
-##   mtry  Accuracy   Kappa      Accuracy SD   Kappa SD    
-##    2    0.9920209  0.9899068  0.0035806336  0.0045300079
-##   27    0.9996602  0.9995702  0.0007164614  0.0009060268
-##   53    0.9993209  0.9991412  0.0011871085  0.0015010433
+##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
+##    2    0.9733392  0.9662578  0.005226524  0.006621263
+##   27    0.9770746  0.9709840  0.008745604  0.011081947
+##   52    0.9640004  0.9544298  0.008997108  0.011415151
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
 ## The final value used for the model was mtry = 27.</code></pre>
-<p>The model was able to obtain very high accuracy of 0.9993209 with the random forest method on the training set with cross validation. We should get similar in the test set. Let’s see how we do on the test set.</p>
+<p>The model was able to obtain very high accuracy of 0.9640004 with the random forest method on the training set with cross validation. We should get similar in the test set. Let’s see how we do on the test set.</p>
 </div>
 <div id="model-evaluation" class="section level2">
 <h2>Model Evaluation</h2>
@@ -226,33 +226,33 @@ confusionMatrix(predictions, cleaned.testing$classe)</code></pre>
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 3906    1    0    0    0
-##          B    0 2656    1    0    0
-##          C    0    0 2394    0    0
-##          D    0    0    0 2251    0
-##          E    0    0    0    0 2524
+##          A 3886   41    0    3    0
+##          B   10 2575   20    4    6
+##          C    7   40 2355   36   16
+##          D    1    1   20 2203   27
+##          E    2    0    0    5 2475
 ## 
 ## Overall Statistics
-##                                      
-##                Accuracy : 0.9999     
-##                  95% CI : (0.9995, 1)
-##     No Information Rate : 0.2844     
-##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
-##                                      
-##                   Kappa : 0.9998     
-##  Mcnemar's Test P-Value : NA         
+##                                           
+##                Accuracy : 0.9826          
+##                  95% CI : (0.9803, 0.9847)
+##     No Information Rate : 0.2844          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.978           
+##  Mcnemar's Test P-Value : 7.86e-13        
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            1.0000   0.9996   0.9996   1.0000   1.0000
-## Specificity            0.9999   0.9999   1.0000   1.0000   1.0000
-## Pos Pred Value         0.9997   0.9996   1.0000   1.0000   1.0000
-## Neg Pred Value         1.0000   0.9999   0.9999   1.0000   1.0000
+## Sensitivity            0.9949   0.9691   0.9833   0.9787   0.9806
+## Specificity            0.9955   0.9964   0.9913   0.9957   0.9994
+## Pos Pred Value         0.9888   0.9847   0.9597   0.9782   0.9972
+## Neg Pred Value         0.9980   0.9926   0.9965   0.9958   0.9956
 ## Prevalence             0.2844   0.1935   0.1744   0.1639   0.1838
-## Detection Rate         0.2844   0.1934   0.1743   0.1639   0.1838
-## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1838
-## Balanced Accuracy      0.9999   0.9998   0.9998   1.0000   1.0000</code></pre>
+## Detection Rate         0.2830   0.1875   0.1715   0.1604   0.1802
+## Detection Prevalence   0.2862   0.1904   0.1787   0.1640   0.1807
+## Balanced Accuracy      0.9952   0.9828   0.9873   0.9872   0.9900</code></pre>
 <pre class="r"><code>count &lt;- 0
 for (i in 1:length(predictions)) {
   if (predictions[i] == cleaned.testing$classe[i]) {
@@ -260,7 +260,7 @@ for (i in 1:length(predictions)) {
   }
 }
 out.of.sample.accuracy &lt;- count/length(predictions)</code></pre>
-<p>The confusion matrix shows that we did very well here as well. There is very high accuracy across the classes that is very close to our reported accuracy on the training set. More specifically, we were correct on 99.9854365% of our predictions, giving an out of sample error of 0.0145635%.</p>
+<p>The confusion matrix shows that we did very well here as well. There is very high accuracy across the classes that is very close to our reported accuracy on the training set. More specifically, we were correct on 98.2596665% of our predictions, giving an out of sample error of 1.7403335%.</p>
 </div>
 <div id="summary-1" class="section level2">
 <h2>Summary</h2>
