@@ -176,19 +176,95 @@ print(near.zero[near.zero$nzv==TRUE, ])</code></pre>
 sub.training &lt;- subset(training, select=col.names)
 sub.testing &lt;- subset(testing, select=col.names[1:99]) #we leave off the classe variable</code></pre>
 <p>There are also a few diagnostic variables that should not be included for creating a generalizable model such as the user’s name, the start or end of windows during data collections, etc. This is good data to have from a gathering point of view, but is not useful for building a classifier that generalizes to usage outside of a laboratory.</p>
-<pre class="r"><code>sub.training &lt;- subset(sub.training, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))
-sub.testing &lt;- subset(sub.testing, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))</code></pre>
+<pre class="r"><code>sub.training.2 &lt;- subset(sub.training, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+sub.testing.2 &lt;- subset(sub.testing, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))</code></pre>
+<p>There’s also some columns that are primarily NA. We remove these columns.</p>
+<pre class="r"><code>greater.than.percent.na &lt;- function(col, percent) {
+  length(which(is.na(col)))/length(col) &gt; percent
+}
+na.cols &lt;- apply(sub.training.2, 2, function(col) greater.than.percent.na(col, 0.95))
+final.training &lt;- subset(sub.training.2, select=c(names(na.cols[na.cols==FALSE])))
+final.testing &lt;- subset(sub.testing.2, select=c(names(na.cols[na.cols==FALSE &amp; names(na.cols) != &quot;classe&quot;])))</code></pre>
 <p>Since our test set is really only used for final grading. We’ll split the training data further down into a training and test set.</p>
 <pre class="r"><code>set.seed(7356)
-training.ids &lt;- createDataPartition(y=sub.training$classe, p=0.05, list=FALSE)
-cleaned.training &lt;- training[training.ids, ]
-cleaned.testing &lt;- training[-training.ids, ]
-fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;)</code></pre>
+#we only use 30% of the data to train on to reduce computation here
+training.ids &lt;- createDataPartition(y=final.training$classe, p=0.30, list=FALSE)
+cleaned.training &lt;- final.training[training.ids, ]
+cleaned.testing &lt;- final.training[-training.ids, ]
+fit &lt;- train(classe ~ ., data=cleaned.training, method=&quot;rf&quot;, trControl=trainControl(method = &quot;cv&quot;, number = 10), preProcess=c(&quot;center&quot;, &quot;scale&quot;))</code></pre>
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre><code>## Warning in nominalTrainWorkflow(x = x, y = y, wts = weights, info =
-## trainInfo, : There were missing values in resampled performance measures.</code></pre>
+<pre class="r"><code>print(fit)</code></pre>
+<pre><code>## Random Forest 
+## 
+## 5889 samples
+##   53 predictor
+##    5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## Pre-processing: centered, scaled 
+## Resampling: Cross-Validated (10 fold) 
+## 
+## Summary of sample sizes: 5301, 5301, 5299, 5301, 5299, 5300, ... 
+## 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa      Accuracy SD   Kappa SD    
+##    2    0.9920209  0.9899068  0.0035806336  0.0045300079
+##   27    0.9996602  0.9995702  0.0007164614  0.0009060268
+##   53    0.9993209  0.9991412  0.0011871085  0.0015010433
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 27.</code></pre>
+<p>The model was able to obtain very high accuracy of 0.9993209 with the random forest method on the training set with cross validation. We should get similar in the test set. Let’s see how we do on the test set.</p>
+</div>
+<div id="model-evaluation" class="section level2">
+<h2>Model Evaluation</h2>
+<pre class="r"><code>predictions &lt;- predict(fit, newdata=cleaned.testing)
+confusionMatrix(predictions, cleaned.testing$classe)</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 3906    1    0    0    0
+##          B    0 2656    1    0    0
+##          C    0    0 2394    0    0
+##          D    0    0    0 2251    0
+##          E    0    0    0    0 2524
+## 
+## Overall Statistics
+##                                      
+##                Accuracy : 0.9999     
+##                  95% CI : (0.9995, 1)
+##     No Information Rate : 0.2844     
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
+##                                      
+##                   Kappa : 0.9998     
+##  Mcnemar's Test P-Value : NA         
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9996   0.9996   1.0000   1.0000
+## Specificity            0.9999   0.9999   1.0000   1.0000   1.0000
+## Pos Pred Value         0.9997   0.9996   1.0000   1.0000   1.0000
+## Neg Pred Value         1.0000   0.9999   0.9999   1.0000   1.0000
+## Prevalence             0.2844   0.1935   0.1744   0.1639   0.1838
+## Detection Rate         0.2844   0.1934   0.1743   0.1639   0.1838
+## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1838
+## Balanced Accuracy      0.9999   0.9998   0.9998   1.0000   1.0000</code></pre>
+<pre class="r"><code>count &lt;- 0
+for (i in 1:length(predictions)) {
+  if (predictions[i] == cleaned.testing$classe[i]) {
+    count &lt;- count + 1
+  }
+}
+out.of.sample.accuracy &lt;- count/length(predictions)</code></pre>
+<p>The confusion matrix shows that we did very well here as well. There is very high accuracy across the classes that is very close to our reported accuracy on the training set. More specifically, we were correct on 99.9854365% of our predictions, giving an out of sample error of 0.0145635%.</p>
+</div>
+<div id="summary-1" class="section level2">
+<h2>Summary</h2>
+<p>Based on this data is indeed possible to build a fitness tracker that not only tracks the amount of exercise you get, bus also the quality and give you some feedback on your poses. However, in practice this could be significantly complicated based on the amount of different users the system would need to be trained for. It is quite possible that each user would need a “training” session to collect data based on their specific form with guidance from an instructor to mark up poor and good form. Other complications would arise from detecting switches to different exercise. However, with further research perhaps this could be overcome. Despite all the future work, this is still very promising.</p>
 </div>
 
 

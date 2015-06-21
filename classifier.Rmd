@@ -55,14 +55,45 @@ sub.testing <- subset(testing, select=col.names[1:99]) #we leave off the classe 
 ```
 There are also a few diagnostic variables that should not be included for creating a generalizable model such as the user's name, the start or end of windows during data collections, etc.  This is good data to have from a gathering point of view, but is not useful for building a classifier that generalizes to usage outside of a laboratory.
 ```{r}
-sub.training <- subset(sub.training, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))
-sub.testing <- subset(sub.testing, select=c(-user_name, -raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp, -num_window))
+sub.training.2 <- subset(sub.training, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+sub.testing.2 <- subset(sub.testing, select=-c(user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window))
+```
+There's also some columns that are primarily NA.  We remove these columns.
+```{r}
+greater.than.percent.na <- function(col, percent) {
+  length(which(is.na(col)))/length(col) > percent
+}
+na.cols <- apply(sub.training.2, 2, function(col) greater.than.percent.na(col, 0.95))
+final.training <- subset(sub.training.2, select=c(names(na.cols[na.cols==FALSE])))
+final.testing <- subset(sub.testing.2, select=c(names(na.cols[na.cols==FALSE & names(na.cols) != "classe"])))
+
 ```
 Since our test set is really only used for final grading. We'll split the training data further down into a training and test set.
-```{r}
+```{r cache=TRUE}
 set.seed(7356)
-training.ids <- createDataPartition(y=sub.training$classe, p=0.05, list=FALSE)
-cleaned.training <- training[training.ids, ]
-cleaned.testing <- training[-training.ids, ]
-fit <- train(classe ~ ., data=cleaned.training, method="rf")
+#we only use 30% of the data to train on to reduce computation here
+training.ids <- createDataPartition(y=final.training$classe, p=0.30, list=FALSE)
+cleaned.training <- final.training[training.ids, ]
+cleaned.testing <- final.training[-training.ids, ]
+fit <- train(classe ~ ., data=cleaned.training, method="rf", trControl=trainControl(method = "cv", number = 10), preProcess=c("center", "scale"))
+print(fit)
 ```
+The model was able to obtain very high accuracy of `r fit$results[3,2]` with the random forest method on the training set with cross validation.  We should get similar in the test set. Let's see how we do on the test set.
+
+## Model Evaluation
+
+```{r}
+predictions <- predict(fit, newdata=cleaned.testing)
+confusionMatrix(predictions, cleaned.testing$classe)
+count <- 0
+for (i in 1:length(predictions)) {
+  if (predictions[i] == cleaned.testing$classe[i]) {
+    count <- count + 1
+  }
+}
+out.of.sample.accuracy <- count/length(predictions)
+```
+The confusion matrix shows that we did very well here as well. There is very high accuracy across the classes that is very close to our reported accuracy on the training set. More specifically, we were correct on `r out.of.sample.accuracy * 100`% of our predictions, giving an out of sample error of `r (1 - out.of.sample.accuracy) * 100`%.
+
+## Summary
+Based on this data is indeed possible to build a fitness tracker that not only tracks the amount of exercise you get, bus also the quality and give you some feedback on your poses.  However, in practice this could be significantly complicated based on the amount of different users the system would need to be trained for.  It is quite possible that each user would need a "training" session to collect data based on their specific form with guidance from an instructor to mark up poor and good form.  Other complications would arise from detecting switches to different exercise.  However, with further research perhaps this could be overcome.  Despite all the future work, this is still very promising.
